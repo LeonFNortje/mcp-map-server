@@ -13,9 +13,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup --dts",
+    "build": "./node_modules/.bin/tsup --dts",
     "start": "node dist/cli.js",
-    "dev": "cross-env NODE_ENV=development tsup --watch",
+    "dev": "cross-env NODE_ENV=development ./node_modules/.bin/tsup --watch",
     "prepublishOnly": "npm run build"
   },
   "engines": {
@@ -49,14 +49,15 @@
     "url": "https://github.com/LeonFNortje/mcp-map-server/issues"
   },
   "dependencies": {
-    "@googlemaps/google-maps-services-js": "^3.4.0",
-    "@modelcontextprotocol/sdk": "^1.11.0",
+    "@googlemaps/google-maps-services-js": "^3.4.2",
+    "@modelcontextprotocol/sdk": "^1.18.0",
     "@types/yargs": "^17.0.33",
     "cross-env": "^7.0.3",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "riskscape-plugins": "^1.1.4",
     "yargs": "^17.7.2",
-    "zod": "^3.24.2"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

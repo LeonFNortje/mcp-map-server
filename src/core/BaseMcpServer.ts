@@ -68,19 +68,24 @@ export class BaseMcpServer {
 
     // Handle POST requests for client-to-server communication
     app.post("/mcp", async (req: Request, res: Response) => {
-      const sessionId = req.headers["mcp-session-id"] as string | undefined;
+      let sessionId = req.headers["mcp-session-id"] as string | undefined;
       let transport: StreamableHTTPServerTransport;
 
       if (sessionId && this.transports[sessionId]) {
         // Reuse existing transport
         transport = this.transports[sessionId];
-      } else if (!sessionId && isInitializeRequest(req.body)) {
-        // New initialization request
+      } else {
+        // No session ID provided or session doesn't exist - create a new one
+        const newSessionId = randomUUID();
+        
+        // Create new transport with auto-generated session ID
         transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => randomUUID(),
-          onsessioninitialized: (sessionId) => {
-            this.transports[sessionId] = transport;
-            Logger.log(`[${this.serverName}] New session initialized: ${sessionId}`);
+          sessionIdGenerator: () => newSessionId,
+          onsessioninitialized: (sid) => {
+            this.transports[sid] = transport;
+            Logger.log(`[${this.serverName}] New session auto-initialized: ${sid}`);
+            // Set the session ID in response header
+            res.setHeader('mcp-session-id', sid);
           },
           // DNS rebinding protection is disabled by default for backwards compatibility
           // For production use, enable this:
@@ -97,17 +102,11 @@ export class BaseMcpServer {
         };
 
         await this.server.connect(transport);
-      } else {
-        // Invalid request
-        res.status(400).json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32000,
-            message: "Bad Request: No valid session ID provided",
-          },
-          id: null,
-        });
-        return;
+        
+        // If this is an initialize request, handle it properly
+        if (!sessionId && isInitializeRequest(req.body)) {
+          Logger.log(`[${this.serverName}] Processing initialize request with auto-generated session`);
+        }
       }
 
       // Handle the request

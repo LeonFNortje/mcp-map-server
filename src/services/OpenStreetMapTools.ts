@@ -61,11 +61,16 @@ export class OpenStreetMapTools {
 
       const amenities = keyword ? (amenityMap[keyword.toLowerCase()] || [keyword.toLowerCase()]) : ['restaurant', 'cafe', 'shop', 'hotel', 'hospital'];
       
-      // Build Overpass query
-      const amenityQueries = amenities.map(amenity => 
-        `node["amenity"="${amenity}"](around:${radius},${location.lat},${location.lng});
-         way["amenity"="${amenity}"](around:${radius},${location.lat},${location.lng});`
-      ).join('\n  ');
+      // Build Overpass query - handle both amenity and shop tags
+      const amenityQueries = amenities.map(amenity => {
+        // Special handling for shops - they use "shop" tag, not "amenity"
+        if (amenity === 'shop' || amenity === 'mall' || amenity === 'shopping') {
+          return `node["shop"](around:${radius},${location.lat},${location.lng});
+         way["shop"](around:${radius},${location.lat},${location.lng});`;
+        }
+        return `node["amenity"="${amenity}"](around:${radius},${location.lat},${location.lng});
+         way["amenity"="${amenity}"](around:${radius},${location.lat},${location.lng});`;
+      }).join('\n  ');
 
       const overpassQuery = `
         [out:json][timeout:25];
@@ -93,7 +98,7 @@ export class OpenStreetMapTools {
 
       for (const element of data.elements || []) {
         const tags = element.tags || {};
-        const name = tags.name || `${tags.amenity || 'Place'}`;
+        const name = tags.name || tags.brand || `${tags.amenity || tags.shop || 'Place'}`;
         
         let lat: number, lng: number;
         if (element.type === 'node') {

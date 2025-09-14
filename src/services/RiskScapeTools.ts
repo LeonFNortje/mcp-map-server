@@ -1,5 +1,6 @@
 import { Logger } from "../index.js";
 import dotenv from "dotenv";
+import { OpenStreetMapTools } from "./OpenStreetMapTools.js";
 
 dotenv.config();
 
@@ -37,35 +38,62 @@ interface GeocodeResult {
 }
 
 export class RiskScapeTools {
-  private readonly baseUrl: string = "https://api.riskscape.pro";
+  private readonly baseUrl: string = "https://api.cloud.riskscape.pro";
+  private readonly servicesUrl: string = "https://services.cloud.riskscape.pro/api";
   private readonly apiKey: string;
+  private readonly bearerToken: string;
   private readonly defaultHeaders: Record<string, string>;
+  private readonly osmFallback: OpenStreetMapTools;
 
   constructor() {
     if (!process.env.RISKSCAPE_API_KEY) {
       throw new Error("RiskScape API Key is required");
     }
     this.apiKey = process.env.RISKSCAPE_API_KEY;
+    this.bearerToken = process.env.RISKSCAPE_BEARER || '';
+    Logger.log(`RiskScapeTools initialized with API key: ${this.apiKey.substring(0, 10)}...`);
+    if (this.bearerToken) {
+      Logger.log(`RiskScapeTools initialized with Bearer token: ${this.bearerToken.substring(0, 10)}...`);
+    }
     this.defaultHeaders = {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'x-api-key': this.apiKey,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'X-API-Version': 'v2'  // Specify v2 API version
+      'Origin': 'http://localhost:3200'  // Add Origin header for CORS
     };
+    // Initialize OSM fallback for unsupported endpoints
+    this.osmFallback = new OpenStreetMapTools();
+    Logger.log("RiskScapeTools initialized with OSM fallback for places search");
   }
 
-  private async fetchAPI(endpoint: string, options: RequestInit = {}): Promise<any> {
-    const url = `${this.baseUrl}${endpoint}`;
+  private async fetchAPI(endpoint: string, options: RequestInit = {}, useServicesHost: boolean = false): Promise<any> {
+    const url = useServicesHost ? `${this.servicesUrl}${endpoint}` : `${this.baseUrl}${endpoint}`;
+    
+    // Use different auth headers based on the host
+    const authHeaders = useServicesHost && this.bearerToken
+      ? { 'Authorization': `Bearer ${this.bearerToken}` }
+      : { 'x-api-key': this.apiKey };
+    
+    const finalHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Origin': 'http://localhost:3200',
+      ...authHeaders,
+      ...options.headers
+    };
+    
+    Logger.log(`Fetching: ${url}`);
+    Logger.log(`Headers: ${useServicesHost ? 'Authorization' : 'x-api-key'}: ${useServicesHost ? finalHeaders.Authorization?.substring(0, 30) : finalHeaders['x-api-key']?.substring(0, 20)}...`);
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        ...this.defaultHeaders,
-        ...options.headers
-      }
+      headers: finalHeaders
     });
 
     if (!response.ok) {
       const error = await response.text();
+      Logger.error(`API Response Status: ${response.status}`);
+      Logger.error(`API Response: ${error}`);
       throw new Error(`RiskScape API error: ${response.status} - ${error}`);
     }
 
@@ -73,99 +101,47 @@ export class RiskScapeTools {
   }
 
   async searchNearbyPlaces(params: SearchParams): Promise<PlaceResult[]> {
+    // RiskScape doesn't support places search, fallback to OSM
+    Logger.log("RiskScape doesn't support places search, using OSM fallback");
     try {
-      const queryParams = new URLSearchParams({
-        lat: params.location.lat.toString(),
-        lng: params.location.lng.toString(),
-        radius: (params.radius || 1000).toString(),
-        ...(params.keyword && { category: params.keyword }),
-        limit: '20'
-      });
-
-      // v2 endpoint - may have different response structure than v1
-      const data = await this.fetchAPI(`/places/v2/search?${queryParams}`);
-      
-      const results = data.results || [];
-      let filtered = results;
-
-      // Apply filters if specified
-      if (params.openNow) {
-        filtered = filtered.filter((place: any) => place.hours?.open_now === true);
-      }
-      
-      if (params.minRating) {
-        filtered = filtered.filter((place: any) => (place.rating || 0) >= params.minRating);
-      }
-
-      return filtered.map((place: any) => ({
-        name: place.name,
-        place_id: place.id,
-        formatted_address: place.address,
-        geometry: {
-          location: {
-            lat: place.location.lat,
-            lng: place.location.lng
-          }
-        },
-        rating: place.rating,
-        user_ratings_total: place.review_count,
-        opening_hours: place.hours ? {
-          open_now: place.hours.open_now
-        } : undefined
-      }));
+      return await this.osmFallback.searchNearbyPlaces(params);
     } catch (error) {
-      Logger.error("Error in searchNearbyPlaces:", error);
-      throw new Error("Error occurred while searching nearby places");
+      Logger.error("Error in searchNearbyPlaces with OSM fallback:", error);
+      throw new Error("Error occurred while searching nearby places using OSM");
     }
   }
 
   async getPlaceDetails(placeId: string): Promise<any> {
+    // RiskScape doesn't support place details, fallback to OSM
+    Logger.log("RiskScape doesn't support place details, using OSM fallback");
     try {
-      // v2 endpoint - response may include additional fields
-      const data = await this.fetchAPI(`/places/v2/details/${placeId}`);
-      
-      return {
-        name: data.name,
-        rating: data.rating,
-        formatted_address: data.address,
-        opening_hours: data.hours,
-        reviews: data.reviews,
-        geometry: {
-          location: {
-            lat: data.location.lat,
-            lng: data.location.lng
-          }
-        },
-        formatted_phone_number: data.contact?.phone,
-        website: data.contact?.website,
-        price_level: data.price_level,
-        photos: data.photos
-      };
+      return await this.osmFallback.getPlaceDetails(placeId);
     } catch (error) {
-      Logger.error("Error in getPlaceDetails:", error);
-      throw new Error("Error occurred while getting place details");
+      Logger.error("Error in getPlaceDetails with OSM fallback:", error);
+      throw new Error("Error occurred while getting place details using OSM");
     }
   }
 
   private async geocodeAddress(address: string): Promise<GeocodeResult> {
     try {
       const queryParams = new URLSearchParams({
-        address: address,
-        limit: '1'
+        q: address  // Changed from 'address' to 'q' as per API docs
       });
 
-      const data = await this.fetchAPI(`/addressing/v2/geocode?${queryParams}`);
+      const response = await this.fetchAPI(`/addressing/v2/autocomplete?${queryParams}`);
       
-      if (!data.results || data.results.length === 0) {
+      // RiskScape returns data wrapped in a 'data' property
+      const data = response.data || response;
+      if (!data || !Array.isArray(data) || data.length === 0) {
         throw new Error("Cannot find location for this address");
       }
 
-      const result = data.results[0];
+      const result = data[0];
       return {
-        lat: result.location.lat,
-        lng: result.location.lng,
-        formatted_address: result.formatted_address,
-        place_id: result.address_id
+        lat: result.position?.lat || 0,
+        lng: result.position?.lon || 0,
+        formatted_address: result.candidate || address,
+        place_id: result.attributes?.address_id || ""
       };
     } catch (error) {
       Logger.error("Error in geocodeAddress:", error);
@@ -216,24 +192,30 @@ export class RiskScapeTools {
   }> {
     try {
       const queryParams = new URLSearchParams({
-        lat: latitude.toString(),
-        lng: longitude.toString()
+        latlon: `${latitude},${longitude}`  // Changed to use 'latlon' parameter as per API docs
       });
 
-      const data = await this.fetchAPI(`/addressing/v2/reverse-geocode?${queryParams}`);
+      const data = await this.fetchAPI(`/addressing/v2/reverse-geocode?${queryParams}`, {}, true); // Use services host with Bearer token
       
-      if (!data.address) {
+      // Check if we got a valid response
+      if (!data) {
         throw new Error("Cannot find address for these coordinates");
       }
 
+      // RiskScape returns the address object directly or wrapped in data
+      const addressData = data.data || data;
+      
       return {
-        formatted_address: data.address.formatted_address,
-        place_id: data.address.address_id,
-        address_components: Object.entries(data.address.components || {}).map(([type, value]) => ({
-          long_name: value,
-          short_name: value,
-          types: [type]
-        }))
+        formatted_address: addressData.full_address || addressData.short_address || "",
+        place_id: addressData.property_key || "",
+        address_components: [
+          addressData.street_number && { long_name: addressData.street_number, short_name: addressData.street_number, types: ["street_number"] },
+          addressData.street && { long_name: addressData.street, short_name: addressData.street, types: ["route"] },
+          addressData.suburb && { long_name: addressData.suburb, short_name: addressData.suburb, types: ["sublocality"] },
+          addressData.city_town && { long_name: addressData.city_town, short_name: addressData.city_town, types: ["locality"] },
+          addressData.province && { long_name: addressData.province, short_name: addressData.province_code || addressData.province, types: ["administrative_area_level_1"] },
+          addressData.postal_code && { long_name: addressData.postal_code, short_name: addressData.postal_code, types: ["postal_code"] }
+        ].filter(Boolean)
       };
     } catch (error) {
       Logger.error("Error in reverseGeocode:", error);
