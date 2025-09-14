@@ -76,6 +76,7 @@
   },
   "overrides": {
     "glob": "^10.0.0",
-    "inflight": "npm:@isaacs/inflight@^1.0.1"
+    "inflight": "npm:@isaacs/inflight@^1.0.1",
+    "source-map": "^0.7.4"
   }
 }

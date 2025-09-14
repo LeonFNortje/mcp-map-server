@@ -428,6 +428,127 @@ mcp-map-server --port 3201
 #### Issue: RiskScape v2 endpoints not working
 **Solution:** Ensure your API key has access to v2 endpoints. The server automatically uses v2 endpoints for better performance and features.
 
+## 🐳 Docker Support
+
+### Quick Start with Docker
+
+The MCP server can be run using Docker, with support for all three map providers:
+
+#### Build the Docker Image
+
+```bash
+# Clone the repository
+git clone https://github.com/LeonFNortje/mcp-map-server.git
+cd mcp-map-server
+
+# Build the Docker image
+docker build -t mcp-map-server .
+```
+
+#### Run with Docker
+
+**Option 1: Google Maps Provider**
+```bash
+docker run -d \
+  --name mcp-google-maps \
+  -p 3200:3200 \
+  -e GOOGLE_MAPS_API_KEY="your_api_key" \
+  -e MAP_API_PROVIDER=google \
+  mcp-map-server
+```
+
+**Option 2: OpenStreetMap Provider (No API Key Required)**
+```bash
+docker run -d \
+  --name mcp-osm \
+  -p 3200:3200 \
+  -e MAP_API_PROVIDER=osm \
+  mcp-map-server \
+  --port 3200 --provider osm
+```
+
+**Option 3: RiskScape Provider**
+```bash
+docker run -d \
+  --name mcp-riskscape \
+  -p 3200:3200 \
+  -e MAP_API_PROVIDER=riskscape \
+  -e RISKSCAPE_API_KEY="your_api_key" \
+  mcp-map-server \
+  --port 3200 --provider riskscape
+```
+
+### Using Docker Compose
+
+For easier management, use Docker Compose to run any or all providers:
+
+1. **Create a `.env` file** with your API keys:
+```env
+GOOGLE_MAPS_API_KEY=your_google_api_key
+RISKSCAPE_API_KEY=your_riskscape_api_key
+```
+
+2. **Start specific services:**
+
+```bash
+# Start only Google Maps server
+docker-compose up -d mcp-google-maps
+
+# Start only OpenStreetMap server (no API key needed)
+docker-compose up -d mcp-openstreetmap
+
+# Start only RiskScape server
+docker-compose up -d mcp-riskscape
+
+# Or start all services at once (on different ports)
+docker-compose up -d
+```
+
+The docker-compose.yml configures:
+- **Google Maps**: Port 3200
+- **OpenStreetMap**: Port 3201  
+- **RiskScape**: Port 3202
+
+3. **Check service status:**
+```bash
+docker-compose ps
+docker-compose logs mcp-google-maps
+```
+
+4. **Stop services:**
+```bash
+docker-compose down
+```
+
+### Docker Features
+
+- **Multi-stage build** for optimized image size (~150MB)
+- **Non-root user** for enhanced security
+- **Health checks** for automatic container monitoring
+- **Environment variable support** for easy configuration
+- **All three providers** supported with simple environment variable switching
+
+### Docker with Claude Desktop
+
+To use the Docker container with Claude Desktop, update your configuration:
+
+```json
+{
+  "mcpServers": {
+    "maps": {
+      "command": "docker",
+      "args": [
+        "run", "--rm",
+        "-e", "MAP_API_PROVIDER=osm",
+        "mcp-map-server",
+        "--port", "3200",
+        "--provider", "osm"
+      ]
+    }
+  }
+}
+```
+
 ## Development
 
 ### Local Development
