@@ -4,7 +4,7 @@ import { PlacesSearcher } from "../../services/PlacesSearcher.js";
 const NAME = "search_nearby";
 const DESCRIPTION = "Search for nearby places based on location, with optional filtering by keywords, distance, rating, and operating hours";
 
-const SCHEMA = {
+const searchNearbySchema = z.object({
   center: z.object({
     value: z.string().describe("Address, landmark name, or coordinates (coordinate format: lat,lng)"),
     isCoordinates: z.boolean().default(false).describe("Whether the value is coordinates"),
@@ -13,9 +13,11 @@ const SCHEMA = {
   radius: z.number().default(1000).describe("Search radius in meters"),
   openNow: z.boolean().default(false).describe("Only show places that are currently open"),
   minRating: z.number().min(0).max(5).optional().describe("Minimum rating requirement (0-5)"),
-};
+});
 
-export type SearchNearbyParams = z.infer<z.ZodObject<typeof SCHEMA>>;
+const SCHEMA = searchNearbySchema.shape;
+
+export type SearchNearbyParams = z.infer<typeof searchNearbySchema>;
 
 let placesSearcher: PlacesSearcher | null = null;
 
@@ -24,7 +26,7 @@ async function ACTION(params: SearchNearbyParams): Promise<{ content: any[]; isE
     if (!placesSearcher) {
       placesSearcher = new PlacesSearcher();
     }
-    const result = await placesSearcher.searchNearby(params);
+    const result = await placesSearcher.searchNearby(params as { center: { value: string; isCoordinates: boolean }; keyword?: string; radius?: number; openNow?: boolean; minRating?: number });
 
     if (!result.success) {
       return {

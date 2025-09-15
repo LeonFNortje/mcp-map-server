@@ -1,9 +1,9 @@
 import { GoogleMapsTools } from "./toolclass.js";
 import { OpenStreetMapTools } from "./OpenStreetMapTools.js";
 import { RiskScapeTools } from "./RiskScapeTools.js";
-import dotenv from "dotenv";
+import { config } from "dotenv";
 
-dotenv.config();
+config();
 
 type MapsProvider = GoogleMapsTools | OpenStreetMapTools | RiskScapeTools;
 

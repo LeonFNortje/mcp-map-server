@@ -1,8 +1,8 @@
 import { Logger } from "../index.js";
-import dotenv from "dotenv";
+import { config } from "dotenv";
 import { OpenStreetMapTools } from "./OpenStreetMapTools.js";
 
-dotenv.config();
+config();
 
 // Use the same interfaces as GoogleMapsTools for compatibility
 interface SearchParams {

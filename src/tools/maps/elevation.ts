@@ -4,14 +4,16 @@ import { PlacesSearcher } from "../../services/PlacesSearcher.js";
 const NAME = "maps_elevation";
 const DESCRIPTION = "Get elevation data (height above sea level) for specific geographic locations";
 
-const SCHEMA = {
+const elevationSchema = z.object({
   locations: z.array(z.object({
     latitude: z.number().describe("Latitude coordinate"),
     longitude: z.number().describe("Longitude coordinate"),
   })).describe("List of locations to get elevation data for"),
-};
+});
 
-export type ElevationParams = z.infer<z.ZodObject<typeof SCHEMA>>;
+const SCHEMA = elevationSchema.shape;
+
+export type ElevationParams = z.infer<typeof elevationSchema>;
 
 let placesSearcher: PlacesSearcher | null = null;
 
@@ -20,7 +22,7 @@ async function ACTION(params: ElevationParams): Promise<{ content: any[]; isErro
     if (!placesSearcher) {
       placesSearcher = new PlacesSearcher();
     }
-    const result = await placesSearcher.getElevation(params.locations);
+    const result = await placesSearcher.getElevation(params.locations as Array<{ latitude: number; longitude: number }>);
 
     if (!result.success) {
       return {

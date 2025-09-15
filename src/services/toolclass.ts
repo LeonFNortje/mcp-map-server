@@ -1,8 +1,8 @@
 import { Client, Language, TravelMode } from "@googlemaps/google-maps-services-js";
-import dotenv from "dotenv";
+import { config } from "dotenv";
 import { Logger } from "../index.js";
 
-dotenv.config();
+config();
 
 interface SearchParams {
   location: { lat: number; lng: number };

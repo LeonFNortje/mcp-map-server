@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 
 import { config as dotenvConfig } from "dotenv";
-import express from "express";
-import path, { resolve } from "path";
+import { resolve, dirname } from "path";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import serverConfigs from "./config.js";
 import { BaseMcpServer } from "./core/BaseMcpServer.js";
 import { Logger } from "./index.js";
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { readFileSync } from 'fs';
 
 // Get the directory of the current module
