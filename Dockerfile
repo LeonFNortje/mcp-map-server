@@ -17,7 +17,7 @@ COPY src ./src
 
 # Copy .env file for default configuration (if exists)
 # Using .env.example as fallback if .env doesn't exist
-COPY .env* ./
+COPY ./.env .env
 
 # Compile TypeScript manually using tsc with proper flags for ES modules
 RUN tsc --outDir dist --module esnext --target esnext --moduleResolution node --allowSyntheticDefaultImports --esModuleInterop src/cli.ts src/index.ts
